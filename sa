@@ -11,7 +11,9 @@ getgenv().SilentAimSettings = {
     Snaplinecolor = Color3.fromRGB(255, 0, 255),
     MouseHitPrediction = false,
     MouseHitPredictionAmount = 0.165,
-    HitChance = 100
+    HitChance = 100,
+    IgnoreFriends = false,
+    FOVMode = "Cursor"
 
 }
 local next = next
@@ -136,6 +138,10 @@ function getClosestPlayer()
     local Closest = nil
     local DistanceToMouse = nil
     local CurrentMousePos = getMousePosition()
+    local fovMode = getgenv().SilentAimSettings.FOVMode
+    if fovMode == "Middle" then
+        CurrentMousePos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    end
     local FOVRadius = getgenv().SilentAimSettings.FOVRadius or 2000
     local TeamCheck = getgenv().SilentAimSettings.TeamCheck
     local VisibleCheck = getgenv().SilentAimSettings.VisibleCheck
@@ -144,6 +150,7 @@ function getClosestPlayer()
     for _, Player in next, GetPlayers(Players) do
         if Player == LocalPlayer then continue end
         if TeamCheck and Player.Team == LocalPlayer.Team then continue end
+        if getgenv().SilentAimSettings.IgnoreFriends and LocalPlayer:IsFriendsWith(Player.UserId) then continue end
 
         local Character = Player.Character
         if not Character then continue end
@@ -153,9 +160,8 @@ function getClosestPlayer()
         local HumanoidRootPart = FindFirstChild(Character, "HumanoidRootPart")
         local Humanoid = FindFirstChild(Character, "Humanoid")
         
-        if not HumanoidRootPart or not Humanoid or Humanoid and Humanoid.Health <= 0 then 
-            continue 
-        end
+        if not HumanoidRootPart or not Humanoid then continue end
+        if Humanoid.Health <= 0 then continue end
 
         local ScreenPosition, OnScreen = getPositionOnScreen(HumanoidRootPart.Position)
         if not OnScreen then continue end
@@ -185,9 +191,15 @@ RunService.RenderStepped:Connect(function(deltaTime)
     if currentTime - lastUpdate < updateInterval then return end
     lastUpdate = currentTime
     cachedMousePos = getMousePosition()
-    fov_circle.Position = cachedMousePos
+    local fovMode = getgenv().SilentAimSettings.FOVMode
+    if fovMode == "Middle" then
+        fov_circle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    else
+        fov_circle.Position = cachedMousePos
+    end
     fov_circle.Radius = getgenv().SilentAimSettings.FOVRadius
     fov_circle.Visible = getgenv().SilentAimSettings.FOVVisible
+    fov_circle.Color = getgenv().SilentAimSettings.FOVColor
     if SilentAimSettings.ShowSnapLine and SilentAimSettings.Enabled then
         local Target = getClosestPlayer()
         if Target then 
@@ -200,6 +212,7 @@ RunService.RenderStepped:Connect(function(deltaTime)
                     snap_line.From = Vector2.new(cachedMousePos.X, cachedMousePos.Y)
                     snap_line.To = Vector2.new(RootToViewportPoint.X, RootToViewportPoint.Y)
                 end
+                snap_line.Color = getgenv().SilentAimSettings.Snaplinecolor
                 snap_line.Visible = IsOnScreen
             end)
         else
