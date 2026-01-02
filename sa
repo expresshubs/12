@@ -41,7 +41,8 @@ GetMouseLocation = UserInputService.GetMouseLocation
 ValidTargetParts = {"Head", "HumanoidRootPart"}
 PredictionAmount = 0.165
 
-local fov_circle = Drawing.new("Circle")
+getgenv().SilentAimFOV = getgenv().SilentAimFOV or Drawing.new("Circle")
+local fov_circle = getgenv().SilentAimFOV
 fov_circle.Thickness = 1
 fov_circle.NumSides = 100
 fov_circle.Radius = getgenv().SilentAimSettings.FOVRadius
@@ -171,19 +172,19 @@ function getClosestPlayer()
         if not OnScreen then continue end
 
         local Distance = (CurrentMousePos - ScreenPosition).Magnitude
-        if Distance <= (DistanceToMouse or FOVRadius) then
-            if TargetPart == "Random" then
-                local randomIndex = mathRandom(1, #ValidTargetParts)
-                local partName = ValidTargetParts[randomIndex]
-                Closest = Character[partName]
-            else
-                Closest = Character[TargetPart]
-                if not Closest then
-                    Closest = HumanoidRootPart
-                end
-            end
-            DistanceToMouse = Distance
+
+if Distance <= FOVRadius then
+    if not DistanceToMouse or Distance < DistanceToMouse then
+        DistanceToMouse = Distance
+
+        if TargetPart == "Random" then
+            Closest = Character[ValidTargetParts[mathRandom(1, #ValidTargetParts)]]
+        else
+            Closest = Character[TargetPart] or HumanoidRootPart
         end
+    end
+end
+
     end
     return Closest
 end
@@ -202,9 +203,11 @@ RunService.RenderStepped:Connect(function(deltaTime)
     else
         fov_circle.Position = cachedMousePos
     end
-    fov_circle.Radius = settings.FOVRadius
-    fov_circle.Visible = settings.FOVVisible
+    fov_circle.Visible = settings.FOVVisible == true
     fov_circle.Color = settings.FOVColor
+    fov_circle.Radius = settings.FOVRadius
+    snap_line.Visible = settings.ShowSnapLine == true
+
     if settings.ShowSnapLine and settings.Enabled then
         local Target = getClosestPlayer()
         if Target then
@@ -330,7 +333,7 @@ oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, Index)
         if Index == "Target" or Index == "target" then 
             return HitPart
         elseif Index == "Hit" or Index == "hit" then 
-            return ((settings.MouseHitPrediction and (HitPart.CFrame + (HitPart.Velocity * PredictionAmount))) or (not settings.MouseHitPrediction and HitPart.CFrame))
+            return ((settings.MouseHitPrediction and (HitPart.CFrame + (HitPart.Velocity * settings.MouseHitPredictionAmount))) or (not settings.MouseHitPrediction and HitPart.CFrame))
         elseif Index == "X" or Index == "x" then 
             return self.X 
         elseif Index == "Y" or Index == "y" then 
@@ -341,4 +344,3 @@ oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, Index)
     end
     return oldIndex(self, Index)
 end))
-
